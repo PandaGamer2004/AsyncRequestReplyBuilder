@@ -35,20 +35,45 @@ public class AsyncOperation<TAsyncOperationInitData, TAsyncOperationContext, TRe
 
     public Task<AsyncOperationTicket> Start(TAsyncOperationInitData asyncOperationData, CancellationToken ct = default)
         => RunBoundToAsyncState(() => StartWhenNotInitialized(asyncOperationData, ct), ct);
+    private async Task<AsyncOperationTicket> RunBoundToAsyncState(
+            Func<Task<AsyncOperationTicket>> runActualOperation,
+            CancellationToken ct)
+        {
+            if (asyncOperationTicket is not null)
+            {
+                try
+                {
+                    AsyncOperationStateMachinePersistedState state = await asyncOperationRepository
+                        .LoadAsyncOperationState(asyncOperationTicket, ct);
 
+                    return new AsyncOperationTicket
+                    {
+                        Id = state.OperationTicket.Id,
+                    };
+                }
+                catch (Exception ex)
+                {
+                    logger.Error<AsyncOperation<TAsyncOperationInitData, TAsyncOperationContext, TResult>>(ex.Message, ex);
+                    throw new FailedToGetOperationStatus($"Failed to load state data for ticket id: {asyncOperationTicket}");
+                }
+
+            }
+            return await runActualOperation();
+        }
     private async Task<AsyncOperationTicket> StartWhenNotInitialized(TAsyncOperationInitData asyncOperationInitData,
         CancellationToken ct)
     {
         //Created new async operation
         AsyncOperationStateMachine<TResult> operationStateMachine = this.stateMachineFactory
             .CreateWithInitialState(asyncOperationInitData);
-        await this.StoreAsyncOperationState(operationStateMachine, AsyncOperationTicket.NullObject);
-        var operationTicket =  new AsyncOperationTicket
+        while (operationStateMachine.GetOperationStatus() != AsyncOperationStatus.Started)
         {
-            Id = -1
-        };
-        this.asyncOperationTicket = operationTicket;
-        throw new NotImplementedException();
+            await operationStateMachine.PerformStateTransition(ct);
+        }
+
+        AsyncOperationTicket storeAsyncOperationState = await this.StoreAsyncOperationState(operationStateMachine, AsyncOperationTicket.NullObject);
+        this.asyncOperationTicket = storeAsyncOperationState;
+        return storeAsyncOperationState;
     }
 
     private Task<AsyncOperationTicket> StoreAsyncOperationState(
@@ -59,33 +84,12 @@ public class AsyncOperation<TAsyncOperationInitData, TAsyncOperationContext, TRe
         {
             OperationTicket = operationTicket,
             OperationStatePayload = statePersistenceModel.StateData,
-            
-        }
-        asyncOperationRepository
-            .StoreAsyncOperationState(new AsyncOperationStateMachinePersistedState());
+            OperationStatus = statePersistenceModel.OperationStatus
+        };
+        return asyncOperationRepository
+            .StoreAsyncOperationState(mappedState);
     }
     
-        
-
-    private async Task<AsyncOperationTicket> RunBoundToAsyncState(
-        Func<Task<AsyncOperationTicket>> runActualOperation,
-        CancellationToken ct)
-    {
-        if (asyncOperationTicket is not null)
-        {
-            AsyncOperationStateMachinePersistedState state = await asyncOperationRepository
-                    .LoadAsyncOperationState(asyncOperationTicket, ct);
-                
-            return new AsyncOperationTicket
-            {
-                Id = state.OperationTicket.Id,
-            };
-            
-        }
-        return await runActualOperation();
-    }
-    
-
 
     public Task<AsyncOperationStatusResult<TResult>> GetStatus(CancellationToken ct = default)
     {
@@ -102,9 +106,17 @@ public class AsyncOperation<TAsyncOperationInitData, TAsyncOperationContext, TRe
     }
 
 
-    private Task<AsyncOperationStatusResult<TResult>> CheckOperationStatus(CancellationToken ct)
+    private async Task<AsyncOperationStatusResult<TResult>> CheckOperationStatus(CancellationToken ct)
     {
-        
+
+        var asyncOperationState = await this.asyncOperationRepository
+            .LoadAsyncOperationState(asyncOperationTicket, ct);
+        var persistenceModel = new StatePersistenceModel(asyncOperationState.OperationStatus,
+            asyncOperationState.OperationStatePayload);
+        AsyncOperationStateMachine<TResult> stateMachine = 
+            this.stateMachineFactory.RestoreFromPersistence(persistenceModel);
+        await stateMachine.PerformStateTransition(ct);
+        return stateMachine.GetPresentationResult();
     }
     
 }

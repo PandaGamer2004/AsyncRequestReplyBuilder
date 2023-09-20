@@ -13,4 +13,5 @@ public interface IAsyncOperationAsyncState<TPayload>: IPersistedAsyncState
     public AsyncOperationStatusResult<TPayload> GetPresentationResult();
 
     public bool IsFinal { get; }
+    AsyncOperationStatus GetOperationStatus();
 }

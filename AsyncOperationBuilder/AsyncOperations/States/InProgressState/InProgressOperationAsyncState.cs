@@ -87,6 +87,9 @@ public class InProgressOperationAsyncState<TOperationContext, TStatusCheckResult
 
     public bool IsFinal => false;
 
+    public AsyncOperationStatus GetOperationStatus()
+        => AsyncOperationStatus.InProgress;
+
     protected override void ApplyPersistedModel(InProgressStatePersistenceModel<TOperationContext, TStatusCheckResult> persistedStateModel)
     {
         this.operationContext = persistedStateModel.ContextData;

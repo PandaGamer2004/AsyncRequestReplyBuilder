@@ -24,6 +24,9 @@ public class CompletedOperationState<TResultPayload>: BasePersistedAsyncState<Co
 
     public bool IsFinal => true;
 
+    public AsyncOperationStatus GetOperationStatus()
+        => OperationStatus;
+
     [DependencyOnlyStateConstructor]
     public CompletedOperationState(
         ISerializationStrategyProvider serializationStrategyProvider,

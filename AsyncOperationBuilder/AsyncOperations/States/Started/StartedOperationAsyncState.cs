@@ -59,6 +59,9 @@ public class StartedOperationAsyncState<TContextData, TStatusCheckResult>:
 
     public bool IsFinal => false;
 
+    public AsyncOperationStatus GetOperationStatus()
+        => OperationStatus;
+
     protected override void ApplyPersistedModel(StartedOperationStateModel<TContextData> persistedStateModel)
     {
         this.asyncOperationContext = persistedStateModel.AsyncOperationContextData;

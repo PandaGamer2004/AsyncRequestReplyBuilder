@@ -45,5 +45,7 @@ public class FailedOperationAsyncState<TResult>: BasePersistedAsyncState<FailedO
         => AsyncOperationStatusResult<TResult>.CreateErrored(errorMessage, OperationStatus.ToString());
 
     public bool IsFinal => true;
-    
+
+    public AsyncOperationStatus GetOperationStatus()
+        => OperationStatus;
 }

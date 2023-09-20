@@ -72,6 +72,9 @@ public class GoingToStartOperationAsyncState<TOperationStartData, TOperationCont
 
     public bool IsFinal => false;
 
+    public AsyncOperationStatus GetOperationStatus()
+        => StateAssociatedStatus;
+
     protected override void ApplyPersistedModel(GoingToStartPersistenceStateData<TOperationStartData> persistedStateModel)
     {
         this.operationInitialData = persistedStateModel.InitialData;

@@ -16,7 +16,7 @@ public class AsyncOperationStateMachine<TOperationResult>:
     IAsyncStateRoot<TOperationResult>
 {
     private IAsyncOperationAsyncState<TOperationResult> asyncOperationAsyncState;
-    
+
     public AsyncOperationStateMachine(IAsyncOperationAsyncState<TOperationResult> asyncOperationAsyncState)
     {
         this.asyncOperationAsyncState = asyncOperationAsyncState;
@@ -37,7 +37,7 @@ public class AsyncOperationStateMachine<TOperationResult>:
                 persistentOperationStateFactory();
             if (asyncOperationAsyncState.TryApplyPersistenceModel(storePersistenceModel))
             {
-                return new AsyncOperationStateMachine<TOperationResult>(asyncOperationAsyncState);
+                return new AsyncOperationStateMachine<TOperationResult>(asyncOperationAsyncState );
             }
         }
 
@@ -51,8 +51,13 @@ public class AsyncOperationStateMachine<TOperationResult>:
                    $"{serializedStoreModel}");
     }
     
+
     public Task PerformStateTransition(CancellationToken ct)
         => this.asyncOperationAsyncState.PerformStateOperation(this, ct);
+
+    public AsyncOperationStatus GetOperationStatus()
+        => this.asyncOperationAsyncState.GetOperationStatus();
+    
 
     public StatePersistenceModel GetPersistenceModel()
         => asyncOperationAsyncState.GetPersistenceModel();
